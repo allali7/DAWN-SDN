@@ -18,6 +18,8 @@ def simulate_attack():
     processing_time = int(input("Enter the time it takes to process a packet: "))
 
     preprocessors = [Preprocessor(device_capacity, virtual_capacity)]
+    total_physical_preprocessors = 1  # start with 1 because we initialize one preprocessor
+    total_virtual_preprocessors = 0
     start_time = time.time()
     for i in range(1, duration + 1):
         intensity = int(input(f"Enter the attack intensity for second {i}: "))
@@ -31,6 +33,7 @@ def simulate_attack():
                     preprocessor.threads[-1].load += load
                 else:
                     preprocessor.threads.append(Packet(load, time.time()))
+                    total_virtual_preprocessors += 1
                 intensity -= load
                 print(f"Second {i}\nPreprocessor {preprocessors.index(preprocessor) + 1} load: {sum(packet.load for packet in preprocessor.threads)}/{preprocessor.device_capacity}")
                 print(f"Virtual Preprocessors: {len(preprocessor.threads)}")
@@ -46,6 +49,8 @@ def simulate_attack():
             new_preprocessor = Preprocessor(device_capacity, virtual_capacity)
             load = min(intensity, virtual_capacity)
             new_preprocessor.threads.append(Packet(load, time.time()))
+            total_physical_preprocessors += 1
+            total_virtual_preprocessors += 1
             intensity -= load
             preprocessors.append(new_preprocessor)
             print(f"Second {i}\nPreprocessor {len(preprocessors)} load: {sum(packet.load for packet in new_preprocessor.threads)}/{new_preprocessor.device_capacity}")
@@ -53,5 +58,8 @@ def simulate_attack():
 
     print(f"\nTotal Physical Preprocessors: {len(preprocessors)}")
     print(f"Total Virtual Preprocessors: {sum(len(p.threads) for p in preprocessors)}")
+    print(f"\nTotal Activated Physical Preprocessors: {total_physical_preprocessors}")
+    print(f"Total Activated Virtual Preprocessors: {total_virtual_preprocessors}")
+
 
 simulate_attack()
