@@ -59,6 +59,13 @@ def check_and_remove_expired_packets(preprocessor, processing_times, preprocesso
             preprocessor.total_expired_packets += 1
             preprocessor.remove_packet(packet)
             print(f"Packet of size {packet.load} and type {packet.packet_type} has expired TTL in Preprocessor {preprocessors.index(preprocessor) + 1}")
+            # remove these lines if ttl and adding to unchecked is causing delay, might be better to drop
+            # Create a new packet with the same load but marked as "unchecked"
+            # unchecked_packet = Packet(packet.load, time.time(), "unchecked")
+            # preprocessor.add_packet(unchecked_packet)
+
+            # # Remove the expired packet
+            # preprocessor.remove_packet(packet)
         elif current_time_microseconds - packet.timestamp >= processing_times[packet.packet_type]:
             preprocessor.remove_packet(packet)
             print(f"Packet of size {packet.load} and type {packet.packet_type} has finished processing in Preprocessor {preprocessors.index(preprocessor) + 1}")
@@ -380,3 +387,5 @@ def simulate_attack():
 
 
 simulate_attack()
+
+
