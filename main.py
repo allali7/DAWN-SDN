@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 class Packet:
     def __init__(self, load, timestamp, packet_type, ttl=-1):
         self.load = load
-        self.timestamp = timestamp
+        self.timestamp = timestamp * 1e6  # Convert to microseconds
         self.packet_type = packet_type
         self.ttl = ttl
 
@@ -53,12 +53,13 @@ def generate_packet(load, packet_types, ttl_values):
     return Packet(load, time.time(), packet_type, ttl)
 
 def check_and_remove_expired_packets(preprocessor, processing_times, preprocessors):
+    current_time_microseconds = time.time() * 1e6  # Convert current time to microseconds
     for packet in preprocessor.threads[:]:
-        if packet.ttl != -1 and time.time() - packet.timestamp >= packet.ttl:
+        if packet.ttl != -1 and current_time_microseconds - packet.timestamp >= packet.ttl:
             preprocessor.total_expired_packets += 1
             preprocessor.remove_packet(packet)
             print(f"Packet of size {packet.load} and type {packet.packet_type} has expired TTL in Preprocessor {preprocessors.index(preprocessor) + 1}")
-        elif time.time() - packet.timestamp >= processing_times[packet.packet_type]:
+        elif current_time_microseconds - packet.timestamp >= processing_times[packet.packet_type]:
             preprocessor.remove_packet(packet)
             print(f"Packet of size {packet.load} and type {packet.packet_type} has finished processing in Preprocessor {preprocessors.index(preprocessor) + 1}")
 
@@ -182,30 +183,69 @@ def display_summary_table(preprocessors):
 
 def plot_processing_time(avg_processing_times):
     labels = list(avg_processing_times.keys())
-    times = list(avg_processing_times.values())
+    times = [time_val / 1000 for time_val in avg_processing_times.values()]  # Convert to milliseconds
 
     plt.bar(labels, times, color='orange')
     plt.xlabel('Packet Type')
-    plt.ylabel('Average Processing Time (s)')
+    plt.ylabel('Average Processing Time (ms)')  # Adjust the label to ms
     plt.title('Average Processing Time per Packet Type')
     plt.show()
 
+
+def generate_intensities():
+    intensities = []
+
+    # Seconds 1-30: Linearly increase from 5000 to 15000
+    for i in range(30):
+        intensity = 5000 + (i / 29) * (15000 - 5000)
+        intensities.append(int(intensity))
+
+    # Seconds 31-90: Stay at peak intensity, around 20000
+    intensities.extend([20000] * 60)
+
+    # Seconds 91-120: Linearly decrease from 15000 to 5000
+    for i in range(30):
+        intensity = 15000 - (i / 29) * (15000 - 5000)
+        intensities.append(int(intensity))
+
+    return intensities
+
+def input_intensities_manually(duration):
+    intensities = []
+    for i in range(1, duration + 1):
+        intensity = int(input(f"Enter the attack intensity for second {i}: "))
+        intensities.append(intensity)
+    return intensities
+
 def simulate_attack():
     # Input gathering section
-    duration = int(input("Enter the duration of the attack in seconds: "))
+    # intensities = []
+    # duration = int(input("Enter the duration of the attack in seconds: "))
+    # Input gathering section
+    choice = input("Do you want to use the default intensity pattern? (yes/no): ").strip().lower()
+
+    if choice == 'yes':
+        intensities = generate_intensities()
+        duration = len(intensities)
+    else:
+        duration = int(input("Enter the duration of the attack in seconds: "))
+        intensities = input_intensities_manually(duration)
+
     device_capacity = int(input("Enter the capacity for each physical preprocessor: "))
     virtual_capacity = int(input("Enter the capacity for each virtual preprocessor: "))
     processing_times = {
-        "unchecked": int(input("Enter the time it takes to process an unchecked packet: ")),
-        "whitelisted": int(input("Enter the time it takes to process a whitelisted packet: ")),
-        "blacklisted": int(input("Enter the time it takes to process a blacklisted packet: ")),
-        "signature-based": int(input("Enter the time it takes to process a signature-based packet: "))
+        "unchecked": int(input("Enter the time it takes to process an unchecked packet (in microseconds): ")),
+        "whitelisted": int(input("Enter the time it takes to process a whitelisted packet (in microseconds): ")),
+        "blacklisted": int(input("Enter the time it takes to process a blacklisted packet (in microseconds): ")),
+        "signature-based": int(input("Enter the time it takes to process a signature-based packet (in microseconds): "))
     }
 
     ttl_values = {
         "unchecked": -1,
-        "whitelisted": int(input("Enter the TTL for a whitelisted packet (enter -1 if there is no TTL): ")),
-        "blacklisted": int(input("Enter the TTL for a blacklisted packet (enter -1 if there is no TTL): ")),
+        "whitelisted": int(
+            input("Enter the TTL for a whitelisted packet in microseconds (enter -1 if there is no TTL): ")),
+        "blacklisted": int(
+            input("Enter the TTL for a blacklisted packet in microseconds (enter -1 if there is no TTL): ")),
         "signature-based": -1
     }
 
@@ -239,8 +279,12 @@ def simulate_attack():
     # Collecting utilization data for each preprocessor
     utilization_data = []
 
+    # for i in range(1, duration + 1):
+    #     intensity = int(input(f"Enter the attack intensity for second {i}: "))
+    #     intensities.append(intensity)
+
     for i in range(1, duration + 1):
-        intensity = int(input(f"Enter the attack intensity for second {i}: "))
+        intensity = intensities[i - 1]
 
         for preprocessor in preprocessors:
             while intensity > 0:
@@ -270,6 +314,7 @@ def simulate_attack():
 
     print(f"\nTotal Physical Preprocessors: {len(preprocessors)}")
     print(f"Total Virtual Preprocessors: {sum(len(p.threads) for p in preprocessors)}")
+
 
     # Display the summary table
     print("\n---------------------------------------------------------------------------------------------")
